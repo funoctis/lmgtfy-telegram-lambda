@@ -1,0 +1,24 @@
+service: lmgtfy-telegram-lambda
+
+frameworkVersion: '1'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  memorySize: 128 # in MB
+  stage: dev
+  region: ap-south-1 # Mumbai
+  environment:
+    TELEGRAM_BOT_TOKEN: ${env:TELEGRAM_BOT_TOKEN}
+
+functions:
+  lmgtfy:
+    handler: handler.lmgtfy
+    events:
+      - http:
+          path: lmgtfy
+          method: post
+          cors: true
+
+plugins:
+  - serverless-plugin-typescript
