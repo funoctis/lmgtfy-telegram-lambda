@@ -59,29 +59,39 @@ const answerQuery = async (queryId: string, message: string) => {
   });
 };
 
-export const lmgtfy: APIGatewayProxyHandler = async (event) => {
-  const body: Update = JSON.parse(event.body as string);
-
-  if (body.message) {
-    const { chat, text } = body.message;
+const handleUpdate = async (update: Update): Promise<void> => {
+  if (update.message) {
+    const { chat, text } = update.message;
 
     if (text) {
+      // handle start command
+      if (text.includes('/start')) {
+        await sendMessage(
+          chat.id,
+          'Hello there, type in any text to get the LetMeGoogleThat link for it.'
+        );
+        return;
+      }
+
       const message = getLmgtfyLink(text);
       await sendMessage(chat.id, message);
     } else {
-      await sendMessage(chat.id, 'No text given.');
+      await sendMessage(
+        chat.id,
+        `Whoops, I don't recognize that. Please send text.`
+      );
     }
-  } else if (body.inline_query) {
-    const inlineQuery = body.inline_query;
-    const query = inlineQuery.query;
+  } else if (update.inline_query) {
+    const message = getLmgtfyLink(update.inline_query.query);
 
-    if (query) {
-      const message = getLmgtfyLink(inlineQuery.query);
-      await answerQuery(inlineQuery.id, message);
-    } else {
-      await answerQuery(inlineQuery.id, 'No text given.');
-    }
+    await answerQuery(update.inline_query.id, message);
   }
+};
+
+export const lmgtfy: APIGatewayProxyHandler = async (event) => {
+  const update: Update = JSON.parse(event.body as string);
+
+  await handleUpdate(update);
 
   return { statusCode: 200, body: '' };
 };
