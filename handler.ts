@@ -1,8 +1,10 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import fetch from 'node-fetch';
 import {
+  InlineQuery,
   InlineQueryResult,
   InlineQueryResultArticle,
+  InputTextMessageContent,
   Update,
 } from 'node-telegram-bot-api';
 import { URL } from 'url';
@@ -19,10 +21,14 @@ const getLmgtfyLink = (queryStr: string): string => {
   return url.href;
 };
 
+const getLinkAsMarkdown = (link: string, text: string) => `[${text}](${link})`;
+
 const sendMessage = async (chatId: number, message: string): Promise<void> => {
   const url = new URL(TELEGRAM_SEND_MESSAGE_BASE_URL);
   url.searchParams.append('chat_id', chatId.toString());
   url.searchParams.append('text', message);
+  url.searchParams.append('parse_mode', 'MarkdownV2');
+  url.searchParams.append('disable_web_page_preview', 'true');
 
   const res = await fetch(url);
 
@@ -34,27 +40,29 @@ const sendMessage = async (chatId: number, message: string): Promise<void> => {
   });
 };
 
-const answerQuery = async (queryId: string, message: string) => {
+const answerQuery = async (inlineQuery: InlineQuery, message: string) => {
   const answers: InlineQueryResult[] = [
     {
       id: '1',
-      title: 'Send LetMeGoogleThat Link',
+      title: `Send LetMeGoogleThat link for "${inlineQuery.query}"`,
       input_message_content: {
         message_text: message,
-      },
+        parse_mode: 'MarkdownV2',
+        disable_web_page_preview: true,
+      } as InputTextMessageContent,
       type: 'article',
     } as InlineQueryResultArticle,
   ];
 
   const url = new URL(TELEGRAM_ANSWER_INLINE_QUERY_URL);
-  url.searchParams.append('inline_query_id', queryId);
+  url.searchParams.append('inline_query_id', inlineQuery.id);
   url.searchParams.append('results', JSON.stringify(answers));
 
   const res = await fetch(url);
   console.info({
     info: 'answer query',
     response: res,
-    queryId: queryId,
+    queryId: inlineQuery.id,
     text: message,
   });
 };
@@ -73,7 +81,8 @@ const handleUpdate = async (update: Update): Promise<void> => {
         return;
       }
 
-      const message = getLmgtfyLink(text);
+      const link = getLmgtfyLink(text);
+      const message = getLinkAsMarkdown(link, text);
       await sendMessage(chat.id, message);
     } else {
       await sendMessage(
@@ -82,9 +91,10 @@ const handleUpdate = async (update: Update): Promise<void> => {
       );
     }
   } else if (update.inline_query) {
-    const message = getLmgtfyLink(update.inline_query.query);
+    const link = getLmgtfyLink(update.inline_query.query);
+    const message = getLinkAsMarkdown(link, update.inline_query.query);
 
-    await answerQuery(update.inline_query.id, message);
+    await answerQuery(update.inline_query, message);
   }
 };
 
