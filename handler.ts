@@ -40,14 +40,24 @@ const sendMessage = async (chatId: number, message: string): Promise<void> => {
   });
 };
 
-const answerQuery = async (inlineQuery: InlineQuery, message: string) => {
+const answerQuery = async (inlineQuery: InlineQuery, plainLink: string) => {
+  const embeddedLink = getLinkAsMarkdown(plainLink, inlineQuery.query);
   const answers: InlineQueryResult[] = [
     {
       id: '1',
-      title: `Send LetMeGoogleThat link for "${inlineQuery.query}"`,
+      title: `Send embedded LetMeGoogleThat link for "${inlineQuery.query}"`,
       input_message_content: {
-        message_text: message,
+        message_text: embeddedLink,
         parse_mode: 'MarkdownV2',
+        disable_web_page_preview: true,
+      } as InputTextMessageContent,
+      type: 'article',
+    } as InlineQueryResultArticle,
+    {
+      id: '2',
+      title: `Send plain LetMeGoogleThat link for "${inlineQuery.query}"`,
+      input_message_content: {
+        message_text: plainLink,
         disable_web_page_preview: true,
       } as InputTextMessageContent,
       type: 'article',
@@ -63,7 +73,7 @@ const answerQuery = async (inlineQuery: InlineQuery, message: string) => {
     info: 'answer query',
     response: res,
     queryId: inlineQuery.id,
-    text: message,
+    link: plainLink,
   });
 };
 
@@ -91,10 +101,9 @@ const handleUpdate = async (update: Update): Promise<void> => {
       );
     }
   } else if (update.inline_query) {
-    const link = getLmgtfyLink(update.inline_query.query);
-    const message = getLinkAsMarkdown(link, update.inline_query.query);
+    const plainLink = getLmgtfyLink(update.inline_query.query);
 
-    await answerQuery(update.inline_query, message);
+    await answerQuery(update.inline_query, plainLink);
   }
 };
 
